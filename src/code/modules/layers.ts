@@ -157,7 +157,7 @@ export const ungroup = (layer) => layer.parent.parent.appendChild(layer);
 export const cleanSelection = ({ reverseLayers = false }): SceneNode[] => {
   const selection = excludeUneeded(figma.currentPage.selection);
   const selectionByParent = Object.values(groupBy(selection, 'parent'));
-  const layers: any = [];
+  const layers: SceneNode[][] = [];
 
   const pushLayer = (selection) => {
     selection.map((group: []) => {
@@ -168,11 +168,11 @@ export const cleanSelection = ({ reverseLayers = false }): SceneNode[] => {
       layers.push(orderedGroup);
       for (let i = 0; i < orderedGroup.length; i++) {
         if (!orderedGroup[i]) {
-          break;
+          continue;
         }
 
         if (!isContainer(orderedGroup[i])) {
-          break;
+          continue;
         }
 
         pushLayer(Object.values(groupBy((orderedGroup[i] as ChildrenMixin).children, 'parent')));
