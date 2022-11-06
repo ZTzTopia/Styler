@@ -32,10 +32,10 @@ export interface TextLayer {
   yPos?: number;
 }
 
-const isContainer = (layer) => ['FRAME', 'COMPONENT', 'INSTANCE'].includes(layer.type);
+const isContainer = (layer) => ['GROUP', 'FRAME', 'COMPONENT', 'INSTANCE'].includes(layer.type);
 const isShape = (layer) => ['RECTANGLE', 'ELLIPSE', 'POLYGON', 'STAR', 'VECTOR'].includes(layer.type);
 const isText = (layer) => layer.type === 'TEXT';
-const excludeGroups = (layers) => layers.filter((layer) => isContainer(layer) || isShape(layer) || isText(layer));
+const excludeUneeded = (layers) => layers.filter((layer) => isContainer(layer) || isShape(layer) || isText(layer));
 
 export const changeColor = (layer, prop, rgba = [0, 0, 0, 1]) => {
   const color = webRGBToFigmaRGB(rgba);
@@ -155,16 +155,31 @@ export const ungroup = (layer) => layer.parent.parent.appendChild(layer);
 --- reorder layers to be sorted as in layer panel
 */
 export const cleanSelection = ({ reverseLayers = false }): SceneNode[] => {
-  const selection = excludeGroups(figma.currentPage.selection);
+  const selection = excludeUneeded(figma.currentPage.selection);
   const selectionByParent = Object.values(groupBy(selection, 'parent'));
   const layers: any = [];
 
-  selectionByParent.map((group: []) => {
-    const orderedGroup: SceneNode[] = [...group].sort((current: any, next: any) => {
-      return current.parent.children.indexOf(current) - next.parent.children.indexOf(next);
-    });
-    layers.push(orderedGroup);
-  });
+  const pushLayer = (selection) => {
+    selection.map((group: []) => {
+      const orderedGroup: SceneNode[] = [...group].sort((current: SceneNode, next: SceneNode) => {
+        return current.parent.children.indexOf(current) - next.parent.children.indexOf(next);
+      });
 
+      layers.push(orderedGroup);
+      for (let i = 0; i < orderedGroup.length; i++) {
+        if (!orderedGroup[i]) {
+          break;
+        }
+
+        if (!isContainer(orderedGroup[i])) {
+          break;
+        }
+
+        pushLayer(Object.values(groupBy((orderedGroup[i] as ChildrenMixin).children, 'parent')));
+      }
+    });
+  }
+
+  pushLayer(selectionByParent);
   return reverseLayers ? layers.flat() : layers.flat().reverse();
 };
